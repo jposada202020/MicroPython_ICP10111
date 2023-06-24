@@ -1,0 +1,7 @@
+{
+  "urls": [
+    ["micropython_icp10111/examples/icp10111_simpletest.py", "github:jposada202020/MicroPython_ICP10111/examples/icp10111_simpletest.py"],
+    ["micropython_icp10111/examples/icp10111_operation_mode.py", "github:jposada202020/MicroPython_ICP10111/examples/icp10111_operation_mode.py"]
+  ],
+  "version": "0.1"
+}

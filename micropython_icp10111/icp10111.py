@@ -16,7 +16,6 @@ import struct
 import time
 
 from micropython import const
-from micropython_icp10111.i2c_helpers import CBits, RegisterStruct
 
 try:
     from typing import Tuple, Union
@@ -68,6 +67,8 @@ class ICP10111:
 
     .. code-block:: python
 
+        press, temp = icp.measurements
+
     """
 
     def __init__(self, i2c, address: int = 0x63) -> None:
@@ -77,13 +78,14 @@ class ICP10111:
         if self._get_device_id() != 0x48:
             raise RuntimeError("Failed to find ICP10111")
 
+        self._sensor_constants = []
         self.get_conversion_values()
-        #  Conversion constant from the datasheet
-        self.p_Pa_calib = [45000.0, 80000.0, 105000.0]
-        self.LUT_lower = 3.5 * (2**20.0)
-        self.LUT_upper = 11.5 * (2**20.0)
-        self.quadr_factor = 1 / 16777216.0
-        self.offst_factor = 2048.0
+        #  Conversion constants from the datasheet
+        self._p_pa_calib = [45000.0, 80000.0, 105000.0]
+        self._lut_lower = 3.5 * (2**20.0)
+        self._lut_upper = 11.5 * (2**20.0)
+        self._quadr_factor = 1 / 16777216.0
+        self._offset_factor = 2048.0
 
         self._mode = NORMAL
 
@@ -122,11 +124,14 @@ class ICP10111:
         return crc & 0xFF
 
     def get_conversion_values(self) -> None:
+        """
+        Get conversion values from the sensor memory
+        """
         self._sensor_constants = []
 
         data = bytearray(3)
         self._i2c.writeto(self._address, _SET_OTP.to_bytes(5, "big"), False)
-        for i in range(4):
+        for _ in range(4):
             self._i2c.writeto(self._address, _GET_VALUES.to_bytes(2, "big"), True)
             self._i2c.readfrom_into(self._address, data, True)
 
@@ -135,51 +140,55 @@ class ICP10111:
 
             self._sensor_constants.append(struct.unpack("H", memoryview(data[:2]))[0])
 
-        return self._sensor_constants
-
-    def calculate_conversion_constants(self, p_Pa, p_LUT):
-        """calculate temperature dependent constants
-        Arguments:
-        p_Pa -- List of 3 values corresponding to applied pressure in Pa
-        p_LUT -- List of 3 values corresponding to the measured p_LUT values at the applied pressures.
+    @staticmethod
+    def calculate_conversion_constants(raw_pa, p_lut):
+        """
+        calculate temperature dependent constants
         """
 
-        C = (
-            p_LUT[0] * p_LUT[1] * (p_Pa[0] - p_Pa[1])
-            + p_LUT[1] * p_LUT[2] * (p_Pa[1] - p_Pa[2])
-            + p_LUT[2] * p_LUT[0] * (p_Pa[2] - p_Pa[0])
+        c = (
+            p_lut[0] * p_lut[1] * (raw_pa[0] - raw_pa[1])
+            + p_lut[1] * p_lut[2] * (raw_pa[1] - raw_pa[2])
+            + p_lut[2] * p_lut[0] * (raw_pa[2] - raw_pa[0])
         ) / (
-            p_LUT[2] * (p_Pa[0] - p_Pa[1])
-            + p_LUT[0] * (p_Pa[1] - p_Pa[2])
-            + p_LUT[1] * (p_Pa[2] - p_Pa[0])
+            p_lut[2] * (raw_pa[0] - raw_pa[1])
+            + p_lut[0] * (raw_pa[1] - raw_pa[2])
+            + p_lut[1] * (raw_pa[2] - raw_pa[0])
         )
-        A = (p_Pa[0] * p_LUT[0] - p_Pa[1] * p_LUT[1] - (p_Pa[1] - p_Pa[0]) * C) / (
-            p_LUT[0] - p_LUT[1]
-        )
-        B = (p_Pa[0] - A) * (p_LUT[0] + C)
-        return A, B, C
+        a = (
+            raw_pa[0] * p_lut[0] - raw_pa[1] * p_lut[1] - (raw_pa[1] - raw_pa[0]) * c
+        ) / (p_lut[0] - p_lut[1])
+        b = (raw_pa[0] - a) * (p_lut[0] + c)
+        return a, b, c
 
-    def get_pressure(self, p_LSB, T_LSB):
-        """Convert an output from a calibrated sensor to a pressure in Pa.
-
-        p_LSB -- Raw pressure data from sensor
-        T_LSB -- Raw temperature data from sensor
+    def get_pressure(self, raw_pressure, raw_temperature):
         """
-        t = T_LSB - 32768.0
+        Convert an output from a calibrated sensor to a pressure in Pa.
+        """
+        temperature_prov = raw_temperature - 32768.0
         s1 = (
-            self.LUT_lower
-            + float(self._sensor_constants[0] * t * t) * self.quadr_factor
+            self._lut_lower
+            + float(self._sensor_constants[0] * temperature_prov * temperature_prov)
+            * self._quadr_factor
         )
         s2 = (
-            self.offst_factor * self._sensor_constants[3]
-            + float(self._sensor_constants[1] * t * t) * self.quadr_factor
+            self._offset_factor * self._sensor_constants[3]
+            + float(self._sensor_constants[1] * temperature_prov * temperature_prov)
+            * self._quadr_factor
         )
-        s3 = self.LUT_upper + float(self._sensor_constants[2] * t * t) * self.quadr_factor
-        A, B, C = self.calculate_conversion_constants(self.p_Pa_calib, [s1, s2, s3])
-        return A + B / (C + p_LSB)
+        s3 = (
+            self._lut_upper
+            + float(self._sensor_constants[2] * temperature_prov * temperature_prov)
+            * self._quadr_factor
+        )
+        a, b, c = self.calculate_conversion_constants(self._p_pa_calib, [s1, s2, s3])
+        return a + b / (c + raw_pressure)
 
     @property
-    def measurements(self) -> float:
+    def measurements(self) -> Tuple[float, float]:
+        """
+        Return Pressure in Pascals and Temperature in Celsius
+        """
         data = bytearray(9)
         self._i2c.writeto(self._address, bytes([0xC7]), False)
         self._i2c.writeto(self._address, self._mode.to_bytes(2, "big"), False)
@@ -210,7 +219,12 @@ class ICP10111:
         | :py:const:`icp10111.ULTRA_LOW_NOISE` | :py:const:`0x58E0` |
         +--------------------------------------+--------------------+
         """
-        values = {0x401A: "LOW_POWER", 0x48A3: "NORMAL", 0x5059: "LOW_NOISE", 0x58E0:"ULTRA_LOW_NOISE"}
+        values = {
+            0x401A: "LOW_POWER",
+            0x48A3: "NORMAL",
+            0x5059: "LOW_NOISE",
+            0x58E0: "ULTRA_LOW_NOISE",
+        }
         return values[self._mode]
 
     @operation_mode.setter
@@ -218,4 +232,3 @@ class ICP10111:
         if value not in operation_mode_values:
             raise ValueError("Value must be a valid operation_mode setting")
         self._mode = value
-

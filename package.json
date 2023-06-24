@@ -1,7 +1,6 @@
 {
   "urls": [
     ["micropython_icp10111/__init__.py", "github:jposada202020/MicroPython_ICP10111/micropython_icp10111/__init__.py"],
-    ["micropython_icp10111/i2c_helpers.py", "github:jposada202020/MicroPython_ICP10111/micropython_icp10111/i2c_helpers.py"],
     ["micropython_icp10111/icp10111.py", "github:jposada202020/MicroPython_ICP10111/micropython_icp10111/icp10111.py"]
   ],
   "version": "0.1"
