@@ -4,10 +4,10 @@
 
 sphinx-immaterial
 
-docutils >=0.14,<0.18
-
-# sphinx 5.3.0 requires Jinja2 >=3.0 and docutils >=0.14,<0.20
-sphinx >=5.0.0,<6
+# docutils >=0.14,<0.18
+#
+# # sphinx 5.3.0 requires Jinja2 >=3.0 and docutils >=0.14,<0.20
+# sphinx >=5.0.0,<6
 
 # mock imports of "micropython"
 mock
