@@ -4,5 +4,5 @@
 
 sphinx-immaterial
 mock
-# replaces outdated and no longer maintained m2rr
-myst-parser >= 0.18.1,<1
+
+
