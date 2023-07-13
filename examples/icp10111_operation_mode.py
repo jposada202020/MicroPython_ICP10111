@@ -16,8 +16,8 @@ while True:
         print("Current Operation mode setting: ", icp.operation_mode)
         for _ in range(10):
             press, temp = icp.measurements
-            print("Pressure {:.2f}KPa".format(press))
-            print("Temperature {:.2f}C".format(temp))
+            print(f"Pressure {press:.2f}KPa")
+            print(f"Temperature {temp:.2f}C")
             print()
             time.sleep(0.5)
         icp.operation_mode = operation_mode
