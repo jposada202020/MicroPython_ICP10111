@@ -17,7 +17,7 @@ while True:
         for _ in range(10):
             press, temp = icp.measurements
             print(f"Pressure {press:.2f}KPa")
-            print(f"Temperature {temp:.2f}C")
+            print(f"Temperature {temp:.2f}°C")
             print()
             time.sleep(0.5)
         icp.operation_mode = operation_mode

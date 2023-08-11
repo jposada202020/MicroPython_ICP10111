@@ -12,6 +12,6 @@ icp = icp10111.ICP10111(i2c)
 while True:
     press, temp = icp.measurements
     print(f"Pressure {press:.2f}KPa")
-    print(f"Temperature {temp:.2f}C")
+    print(f"Temperature {temp:.2f}°C")
     print()
     time.sleep(0.5)

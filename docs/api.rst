@@ -1,4 +1,4 @@
-MicroPython ICP10111 Library
+MicroPython ICP10111 Driver
 =====================================================================
 
 

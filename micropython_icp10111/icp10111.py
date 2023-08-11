@@ -12,15 +12,15 @@ MicroPython Driver for the TDK ICP-10111 Barometric Pressure and Temperature sen
 
 
 """
-import struct
-import time
-
-from micropython import const
 
 try:
     from typing import Tuple, Union
 except ImportError:
     pass
+
+import struct
+import time
+from micropython import const
 
 
 __version__ = "0.0.0+auto.0"
@@ -76,7 +76,7 @@ class ICP10111:
         self._address = address
 
         if self._get_device_id() != 0x48:
-            raise RuntimeError("Failed to find ICP10111")
+            raise RuntimeError("Failed to find the ICP10111 sensor")
 
         self._sensor_constants = []
         self.get_conversion_values()
